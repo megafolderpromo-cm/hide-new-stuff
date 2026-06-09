@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video Vault</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    :root {
+      --primary: #e50914; --primary-light: #ff2d55; --primary-deep: #b20710;
+      --accent-gold: #fbbf24; --bg: #0b1220;
+      --card: linear-gradient(165deg, #151d2e 0%, #111827 55%, #0f172a 100%);
+      --text: #f1f5f9; --muted: #94a3b8; --stroke: rgba(148, 163, 184, 0.14);
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html { color-scheme:dark; }
+    body {
+      font-family:'Inter',system-ui,sans-serif; background:var(--bg);
+      background-image:radial-gradient(ellipse 100% 60% at 50% -20%,rgba(229,9,20,0.16),transparent);
+      color:var(--text); min-height:100vh; line-height:1.5;
+    }
+    .container { max-width:1180px; margin:0 auto; padding:1.25rem; }
+    .hero {
+      border:1px solid rgba(229,9,20,0.48); border-radius:20px; padding:1.35rem 1.65rem;
+      background:linear-gradient(180deg,rgba(21,29,46,0.98),rgba(15,23,42,0.98));
+      box-shadow:0 14px 40px rgba(0,0,0,0.45); margin-bottom:1.25rem; text-align:center;
+    }
+    .hero h2 { color:var(--primary-light); font-weight:900; text-transform:uppercase; font-size:1.5rem; }
+    .chips { display:flex; flex-wrap:wrap; gap:0.45rem; margin-top:0.75rem; justify-content:center; }
+    .chip { font-size:0.68rem; font-weight:800; padding:0.32rem 0.65rem; border-radius:999px; background:rgba(30,41,59,0.92); color:#ffd4dc; border:1px solid rgba(229,9,20,0.35); }
+    .toolbar { margin:1.5rem 0 1rem; text-align:left; padding-left:0.5rem; }
+    .toolbar h1 { font-size:1.3rem; font-weight:800; color:#e2e8f0; }
+    .grid { display:grid; gap:1rem; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); }
+    @media (min-width:600px) { .grid { grid-template-columns:repeat(2,1fr); } }
+    @media (min-width:900px) { .grid { grid-template-columns:repeat(3,1fr); } }
+    @media (min-width:1100px) { .grid { grid-template-columns:repeat(4,1fr); } }
+
+    .vcard {
+      background:var(--card); border:1px solid var(--stroke); border-radius:16px;
+      overflow:hidden; transition:transform 0.28s var(--ease),box-shadow 0.28s;
+    }
+    .vcard:hover { transform:translateY(-3px); box-shadow:0 22px 56px rgba(0,0,0,0.55); }
+    .vcard-media { position:relative; padding-top:56.25%; background:var(--bg); }
+    .vcard-media img, .vcard-media video {
+      position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
+    }
+    .vcard-media video { display:block !important; }
+    .vcard-media img.poster-over { z-index:2; display:block; }
+    .badge-price {
+      position:absolute; top:8px; right:8px; z-index:3; font-weight:700;
+      font-size:0.85rem; padding:0.3rem 0.7rem; border-radius:8px;
+      background:rgba(12,12,16,0.92); border:1px solid rgba(255,255,255,0.12);
+    }
+    .badge-price em { font-style:normal; color:var(--primary-light); }
+    .vcard-body { padding:1rem; display:flex; flex-direction:column; gap:0.5rem; }
+    .vcard-title { font-weight:700; font-size:0.9rem; color:#f4f4f6; }
+    .vcard-trust { display:flex; flex-wrap:wrap; align-items:center; gap:0.35rem; font-size:0.65rem; font-weight:600; text-transform:uppercase; color:rgba(158,151,168,0.95); }
+    .vcard-trust-item { display:inline-flex; align-items:center; gap:0.28rem; }
+    .vcard-trust-dot { opacity:0.45; }
+    .btn-row { display:flex; gap:0.4rem; }
+    .btn {
+      font-family:inherit; font-weight:700; font-size:0.75rem; border-radius:10px;
+      padding:0.58rem; cursor:pointer; border:1px solid var(--stroke);
+      background:rgba(255,255,255,0.03); color:#e8e6ec; text-align:center;
+      flex:1; transition:all 0.18s; text-decoration:none;
+    }
+    .btn:hover { background:rgba(255,255,255,0.065); color:#fff; }
+    .btn-primary { background:linear-gradient(180deg,var(--primary-light),var(--primary-deep)); color:#fff; }
+    .btn-gold { background:linear-gradient(180deg,#fbbf24,#f59e0b); color:#000; border-color:#d97706; font-weight:800; text-transform:uppercase; }
+    .btn-white { background:#fff; color:#000; border-color:#ccc; font-weight:700; }
+    .price-row { display:flex; justify-content:space-between; padding-top:0.5rem; border-top:1px solid rgba(255,255,255,0.05); font-size:0.85rem; }
+    .price-amt { font-weight:700; color:#fff; }
+
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:1000; display:none; align-items:center; justify-content:center; padding:20px; }
+    .modal-overlay.active { display:flex; }
+    .modal { background:#141418; border:1px solid rgba(255,255,255,0.1); border-radius:20px; width:100%; max-width:400px; max-height:90vh; overflow-y:auto; padding:20px; text-align:center; }
+    .modal h3 { font-size:1rem; font-weight:800; margin-bottom:4px; }
+    .modal-product { font-size:0.75rem; color:var(--muted); margin-bottom:12px; }
+    .modal-label { font-size:0.6rem; color:#888; letter-spacing:2px; margin-bottom:8px; }
+    .pay-options { display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
+    .pay-opt { display:flex; align-items:center; gap:10px; padding:12px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:12px; cursor:pointer; font-weight:600; font-size:0.78rem; color:#ddd; text-align:left; }
+    .pay-opt:active { border-color:var(--primary-light); }
+    .pay-opt i { font-size:1.2rem; width:24px; text-align:center; }
+    .crypto-section { display:none; text-align:left; margin-bottom:10px; }
+    .crypto-section.active { display:block; }
+    .crypto-box { background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:10px; margin-bottom:6px; }
+    .crypto-label { font-size:0.7rem; font-weight:700; color:#fbbf24; margin-bottom:4px; }
+    .crypto-addr { font-family:monospace; font-size:0.65rem; color:#ccc; word-break:break-all; background:rgba(0,0,0,0.4); padding:6px; border-radius:6px; margin-bottom:6px; }
+    .btn-copy { font-size:0.6rem; font-weight:700; padding:5px 10px; border-radius:6px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); color:#ccc; cursor:pointer; }
+    .modal-close { width:100%; padding:10px; margin-top:8px; font-size:0.7rem; font-weight:600; background:transparent; border:1px solid rgba(255,255,255,0.1); border-radius:8px; color:#888; cursor:pointer; }
+
+    .mini-bubble { position:fixed; bottom:14px; right:10px; z-index:999; background:rgba(0,0,0,0.95); border:2px solid #fbbf24; border-radius:12px; padding:8px 12px; display:flex; align-items:center; gap:6px; box-shadow:0 0 20px rgba(251,191,36,0.3); max-width:250px; }
+    .bubble-dot { width:6px; height:6px; background:#22c55e; border-radius:50%; animation:dotPulse 1s infinite; flex-shrink:0; }
+    @keyframes dotPulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+    .bubble-content { flex:1; min-width:0; }
+    .bubble-buyer { font-size:0.6rem; font-weight:700; color:#fbbf24; }
+    .bubble-product { font-size:0.55rem; color:#aaa; }
+    .bubble-price { font-size:0.65rem; font-weight:900; color:#22c55e; flex-shrink:0; }
+
+    .trust-bar { display:flex; justify-content:center; gap:15px; padding:12px; margin:12px 0; background:rgba(255,255,255,0.02); border-radius:12px; font-size:0.55rem; color:#888; flex-wrap:wrap; }
+    .trust-item { display:flex; align-items:center; gap:4px; }
+    .trust-item i { color:var(--primary-light); }
+    footer { text-align:center; padding:2rem; font-size:0.7rem; color:#666; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+
+    <div class="hero">
+      <h2>🔥 MEMBERS ONLY</h2>
+      <div class="chips"><span class="chip">BTC</span><span class="chip">USDT</span><span class="chip">PayPal</span><span class="chip">Cards</span></div>
+    </div>
+
+    <div class="toolbar"><h1>TODAY BUY 1 GET 2 FREE</h1></div>
+
+    <div class="grid">
+
+      <!-- CARD 1 - SÓ VÍDEO | Preview + BUY NOW -->
+      <article class="vcard">
+        <div class="vcard-media">
+          <video controls preload="auto" playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;">
+            <source src="https://files.catbox.moe/iwzvqr.mp4" type="video/mp4">
+          </video>
+          <span class="badge-price"><em>$</em>150</span>
+        </div>
+        <div class="vcard-body">
+          <div class="vcard-title">ALL CONTENT 1.5TB</div>
+          <div class="vcard-trust"><span class="vcard-trust-item">Secure</span><span class="vcard-trust-dot">·</span><span class="vcard-trust-item">Instant</span></div>
+          <div class="btn-row">
+            <button class="btn btn-primary js-preview-simple" data-img="img1">▶ Preview</button>
+            <button class="btn btn-gold js-buy" data-name="NOME_PRODUTO_1" data-price="150">BUY NOW</button>
+          </div>
+          <div class="price-row"><span>Total</span><span class="price-amt">$150 USD</span></div>
+        </div>
+      </article>
+
+      <!-- CARD 2 - IMAGEM + VÍDEO | Preview + BUY NOW -->
+      <article class="vcard">
+        <div class="vcard-media">
+          <video controls preload="auto" playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;">
+            <source src="https://files.catbox.moe/suqmkt.mp4" type="video/mp4">
+          </video>
+          <img src="https://files.catbox.moe/z3oifa.webp" alt="CARD 2" loading="lazy" class="poster-over" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:2;" id="img2">
+          <span class="badge-price"><em>$</em>30</span>
+        </div>
+        <div class="vcard-body">
+          <div class="vcard-title">LIZZY AND BROTHER</div>
+          <div class="vcard-trust"><span class="vcard-trust-item">Secure</span><span class="vcard-trust-dot">·</span><span class="vcard-trust-item">Instant</span></div>
+          <div class="btn-row">
+            <button class="btn btn-primary js-preview-simple" data-img="img2">▶ Preview</button>
+            <button class="btn btn-gold js-buy" data-name="LIZZY AND BRO" data-price="30">BUY NOW</button>
+          </div>
+          <div class="price-row"><span>Total</span><span class="price-amt">$30 USD</span></div>
+        </div>
+      </article>
+
+      <!-- CARD 3 - SÓ VÍDEO | Preview + BUY NOW -->
+      <article class="vcard">
+        <div class="vcard-media">
+          <video controls preload="auto" playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;">
+            <source src="https://files.catbox.moe/zqhyim.mp4" type="video/mp4">
+          </video>
+          <span class="badge-price"><em>$</em>45</span>
+        </div>
+        <div class="vcard-body">
+          <div class="vcard-title">AYUMI </div>
+          <div class="vcard-trust"><span class="vcard-trust-item">Secure</span><span class="vcard-trust-dot">·</span><span class="vcard-trust-item">Instant</span></div>
+          <div class="btn-row">
+            <button class="btn btn-primary js-preview-simple" data-img="img3">▶ Preview</button>
+            <button class="btn btn-gold js-buy" data-name="AYUMI " data-price="45">BUY NOW</button>
+          </div>
+          <div class="price-row"><span>Total</span><span class="price-amt">$45 USD</span></div>
+        </div>
+      </article>
+
+      <!-- CARD 4 - IMAGEM + VÍDEO | Preview + BUY NOW -->
+      <article class="vcard">
+        <div class="vcard-media">
+          <video controls preload="auto" playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;">
+            <source src="https://files.catbox.moe/1t6sgb.mp4" type="video/mp4">
+          </video>
+          <img src="https://files.catbox.moe/znp3kd.webp" alt="CARD 4" loading="lazy" class="poster-over" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:2;" id="img4">
+          <span class="badge-price"><em>$</em>25</span>
+        </div>
+        <div class="vcard-body">
+          <div class="vcard-title">CP 1: 09-11Y</div>
+          <div class="vcard-trust"><span class="vcard-trust-item">Secure</span><span class="vcard-trust-dot">·</span><span class="vcard-trust-item">Instant</span></div>
+          <div class="btn-row">
+            <button class="btn btn-primary js-preview-simple" data-img="img4">▶ Preview</button>
+            <button class="btn btn-gold js-buy" data-name="CP 1: 09-11Y" data-price="25">BUY NOW</button>
+          </div>
+          <div class="price-row"><span>Total</span><span class="price-amt">$25 USD</span></div>
+        </div>
+      </article>
+
+      <!-- CARD 5 - IMAGEM + VÍDEO | Preview + BUY NOW -->
+      <article class="vcard">
+        <div class="vcard-media">
+          <video controls preload="auto" playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;">
+            <source src="https://files.catbox.moe/x3dp1k.MP4" type="video/mp4">
+          </video>
+          <img src="https://files.catbox.moe/s5mbfq.webp" alt="CARD 5" loading="lazy" class="poster-over" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:2;" id="img5">
+          <span class="badge-price"><em>$</em>20</span>
+        </div>
+        <div class="vcard-body">
+          <div class="vcard-title">DESIREE GARCIA</div>
+          <div class="vcard-trust"><span class="vcard-trust-item">Secure</span><span class="vcard-trust-dot">·</span><span class="vcard-trust-item">Instant</span></div>
+          <div class="btn-row">
+            <button class="btn btn-primary js-preview-simple" data-img="img5">▶ Preview</button>
+            <button class="btn btn-gold js-buy" data-name="DESIREE GARCIA" data-price="20">BUY NOW</button>
+          </div>
+          <div class="price-row"><span>Total</span><span class="price-amt">$20 USD</span></div>
+        </div>
+      </article>
+
+      <!-- CARD 6 - IMAGEM + VÍDEO | Preview + BUY NOW -->
+      <article class="vcard">
+        <div class="vcard-media">
+          <video controls preload="auto" playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;">
+            <source src="https://files.catbox.moe/bx074v.mp4" type="video/mp4">
+          </video>
+          <img src="https://files.catbox.moe/4gpplk.jpg" alt="CARD 6" loading="lazy" class="poster-over" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:2;" id="img6">
+          <span class="badge-price"><em>$</em>45</span>
+        </div>
+        <div class="vcard-body">
+          <div class="vcard-title">ANXIOUNS PANDA COLLECTION😍🔥</div>
+          <div class="vcard-trust"><span class="vcard-trust-item">Secure</span><span class="vcard-trust-dot">·</span><span class="vcard-trust-item">Instant</span></div>
+          <div class="btn-row">
+            <button class="btn btn-primary js-preview-simple" data-img="img6">▶ Preview</button>
+            <button class="btn btn-gold js-buy" data-name="ANXIOUNS PANDA COLLECTION😍🔥" data-price="45">BUY NOW</button>
+          </div>
+          <div class="price-row"><span>Total</span><span class="price-amt">$45 USD</span></div>
+        </div>
+      </article>
+
+      <!-- CARD 7 - IMAGEM + VÍDEO | Preview + BUY NOW -->
+      <article class="vcard">
+        <div class="vcard-media">
+          <video controls preload="auto" playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;">
+            <source src="https://files.catbox.moe/50ypsi.MP4" type="video/mp4">
+          </video>
+          <img src="https://files.catbox.moe/ldcr8y.jpg" alt="CARD 7" loading="lazy" class="poster-over" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:2;" id="img7">
+          <span class="badge-price"><em>$</em>30</span>
+        </div>
+        <div class="vcard-body">
+          <div class="vcard-title">AMELIA BLONDE </div>
+          <div class="vcard-trust"><span class="vcard-trust-item">Secure</span><span class="vcard-trust-dot">·</span><span class="vcard-trust-item">Instant</span></div>
+          <div class="btn-row">
+            <button class="btn btn-primary js-preview-simple" data-img="img7">▶ Preview</button>
+            <button class="btn btn-gold js-buy" data-name="AMELIA BLONDE" data-price="30">BUY NOW</button>
+          </div>
+          <div class="price-row"><span>Total</span><span class="price-amt">$30 USD</span></div>
+        </div>
+      </article>
+
+      <!-- CARD 8 - IMAGEM + VÍDEO | Preview + BUY NOW -->
+      <article class="vcard">
+        <div class="vcard-media">
+          <video controls preload="auto" playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;">
+            <source src="https://files.catbox.moe/3ygwfr.mp4" type="video/mp4">
+          </video>
+          <img src="https://files.catbox.moe/corgju.webp" alt="CARD 8" loading="lazy" class="poster-over" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:2;" id="img8">
+          <span class="badge-price"><em>$</em>30</span>
+        </div>
+        <div class="vcard-body">
+          <div class="vcard-title">CP 2: 11-13Y</div>
+          <div class="vcard-trust"><span class="vcard-trust-item">Secure</span><span class="vcard-trust-dot">·</span><span class="vcard-trust-item">Instant</span></div>
+          <div class="btn-row">
+            <button class="btn btn-primary js-preview-simple" data-img="img8">▶ Preview</button>
+            <button class="btn btn-gold js-buy" data-name="CP 2: 11-13Y" data-price="30">BUY NOW</button>
+          </div>
+          <div class="price-row"><span>Total</span><span class="price-amt">$30 USD</span></div>
+        </div>
+      </article>
+
+      <!-- CARD 9 - IMAGEM + VÍDEO | Preview + BUY NOW -->
+      <article class="vcard">
+        <div class="vcard-media">
+          <video controls preload="auto" playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;">
+            <source src="https://files.catbox.moe/lmt17w.mp4" type="video/mp4">
+          </video>
+          <img src="https://files.catbox.moe/vyvsli.webp" alt="CARD 9" loading="lazy" class="poster-over" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:2;" id="img9">
+          <span class="badge-price"><em>$</em>40</span>
+        </div>
+        <div class="vcard-body">
+          <div class="vcard-title">CP 3&4: 13-15Y</div>
+          <div class="vcard-trust"><span class="vcard-trust-item">Secure</span><span class="vcard-trust-dot">·</span><span class="vcard-trust-item">Instant</span></div>
+          <div class="btn-row">
+            <button class="btn btn-primary js-preview-simple" data-img="img9">▶ Preview</button>
+            <button class="btn btn-gold js-buy" data-name="CP 3&4: 13-15Y" data-price="40">BUY NOW</button>
+          </div>
+          <div class="price-row"><span>Total</span><span class="price-amt">$40 USD</span></div>
+        </div>
+      </article>
+
+      <!-- CARD 10 - SÓ VÍDEO | Preview + BUY NOW -->
+      <article class="vcard">
+        <div class="vcard-media">
+          <video controls preload="auto" playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;">
+            <source src="https://files.catbox.moe/7tvadq.mp4" type="video/mp4">
+          </video>
+          <span class="badge-price"><em>$</em>45</span>
+        </div>
+        <div class="vcard-body">
+          <div class="vcard-title">RAPE🔥</div>
+          <div class="vcard-trust"><span class="vcard-trust-item">Secure</span><span class="vcard-trust-dot">·</span><span class="vcard-trust-item">Instant</span></div>
+          <div class="btn-row">
+            <button class="btn btn-primary js-preview-simple" data-img="img10">▶ Preview</button>
+            <button class="btn btn-gold js-buy" data-name="RAPE🔥" data-price="45">BUY NOW</button>
+          </div>
+          <div class="price-row"><span>Total</span><span class="price-amt">$45 USD</span></div>
+        </div>
+      </article>
+
+       <article class="vcard">
+        <div class="vcard-media">
+          <video controls preload="auto" playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;">
+            <source src="https://files.catbox.moe/ihwbqz.mp4" type="video/mp4">
+          </video>
+          <span class="badge-price"><em>$</em>40</span>
+        </div>
+        <div class="vcard-body">
+          <div class="vcard-title">CP-FATHER AND DAUGHTER    10-12🔥</div>
+          <div class="vcard-trust"><span class="vcard-trust-item">Secure</span><span class="vcard-trust-dot">·</span><span class="vcard-trust-item">Instant</span></div>
+          <div class="btn-row">
+            <button class="btn btn-primary js-preview-simple" data-img="img11">▶ Preview</button>
+            <button class="btn btn-gold js-buy" data-name="C🅿️ - FATHER AND DAUGHTER 10-12🔥" data-price="40">BUY NOW</button>
+          </div>
+          <div class="price-row"><span>Total</span><span class="price-amt">$40 USD</span></div>
+        </div>
+      </article>
+
+       <article class="vcard">
+        <div class="vcard-media">
+          <video controls preload="auto" playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;">
+            <source src="https://files.catbox.moe/n0pjq6.mp4" type="video/mp4">
+          </video>
+          <img src="https://files.catbox.moe/a6do4g.webp" alt="CARD 12" loading="lazy" class="poster-over" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:2;" id="img12">
+          <span class="badge-price"><em>$</em>35</span>
+        </div>
+        <div class="vcard-body">
+          <div class="vcard-title">🔞MOM AND SON🔥</div>
+          <div class="vcard-trust"><span class="vcard-trust-item">Secure</span><span class="vcard-trust-dot">·</span><span class="vcard-trust-item">Instant</span></div>
+          <div class="btn-row">
+            <button class="btn btn-primary js-preview-simple" data-img="img12">▶ Preview</button>
+            <button class="btn btn-gold js-buy" data-name="🔞MOM AND SON🔥" data-price="35">BUY NOW</button>
+          </div>
+          <div class="price-row"><span>Total</span><span class="price-amt">$35 USD</span></div>
+        </div>
+      </article>
+
+ <article class="vcard">
+        <div class="vcard-media">
+          <video controls preload="auto" playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;">
+            <source src="https://files.catbox.moe/wa57vi.mp4" type="video/mp4">
+          </video>
+          <img src="https://files.catbox.moe/57ola4.webp" alt="CARD 13" loading="lazy" class="poster-over" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:2;" id="img13">
+          <span class="badge-price"><em>$</em>35</span>
+        </div>
+        <div class="vcard-body">
+          <div class="vcard-title">IVANKA AND BROTHER</div>
+          <div class="vcard-trust"><span class="vcard-trust-item">Secure</span><span class="vcard-trust-dot">·</span><span class="vcard-trust-item">Instant</span></div>
+          <div class="btn-row">
+            <button class="btn btn-primary js-preview-simple" data-img="img13">▶ Preview</button>
+            <button class="btn btn-gold js-buy" data-name="IVANKA AND BROTHER" data-price="35">BUY NOW</button>
+          </div>
+          <div class="price-row"><span>Total</span><span class="price-amt">$35 USD</span></div>
+        </div>
+      </article>
+
+ <article class="vcard">
+        <div class="vcard-media">
+          <video controls preload="auto" playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;">
+            <source src="https://files.catbox.moe/qi32y2.mp4" type="video/mp4">
+          </video>
+          <img src="https://files.catbox.moe/97ya8q.webp" alt="CARD 14" loading="lazy" class="poster-over" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:2;" id="img14">
+          <span class="badge-price"><em>$</em>35</span>
+        </div>
+        <div class="vcard-body">
+          <div class="vcard-title">HIGHSCHOOL TEENS❤🔥</div>
+          <div class="vcard-trust"><span class="vcard-trust-item">Secure</span><span class="vcard-trust-dot">·</span><span class="vcard-trust-item">Instant</span></div>
+          <div class="btn-row">
+            <button class="btn btn-primary js-preview-simple" data-img="img14">▶ Preview</button>
+            <button class="btn btn-gold js-buy" data-name="HIGHSCHOOL TEENS❤🔥" data-price="35">BUY NOW</button>
+          </div>
+          <div class="price-row"><span>Total</span><span class="price-amt">$35 USD</span></div>
+        </div>
+      </article>
+
+<article class="vcard">
+        <div class="vcard-media">
+          <video controls preload="auto" playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;">
+            <source src="https://files.catbox.moe/2gs2um.mp4" type="video/mp4">
+          </video>
+          <img src="https://files.catbox.moe/ltal60.jpg" alt="CARD 9" loading="lazy" class="poster-over" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:2;" id="img15">
+          <span class="badge-price"><em>$</em>60</span>
+        </div>
+        <div class="vcard-body">
+          <div class="vcard-title">MEGA SEX CP</div>
+          <div class="vcard-trust"><span class="vcard-trust-item">Secure</span><span class="vcard-trust-dot">·</span><span class="vcard-trust-item">Instant</span></div>
+          <div class="btn-row">
+            <button class="btn btn-primary js-preview-simple" data-img="img15">▶ Preview</button>
+            <button class="btn btn-gold js-buy" data-name="MEGA SEX CP" data-price="60">BUY NOW</button>
+          </div>
+          <div class="price-row"><span>Total</span><span class="price-amt">$60 USD</span></div>
+        </div>
+      </article>
+
+<article class="vcard">
+        <div class="vcard-media">
+          <video controls preload="auto" playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;">
+            <source src="https://files.catbox.moe/hpnk2m.mp4" type="video/mp4">
+          </video>
+          <img src="https://files.catbox.moe/4av8s1.webp" alt="CARD 9" loading="lazy" class="poster-over" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:2;" id="img16">
+          <span class="badge-price"><em>$</em>25</span>
+        </div>
+        <div class="vcard-body">
+          <div class="vcard-title">IZZY AND DOG</div>
+          <div class="vcard-trust"><span class="vcard-trust-item">Secure</span><span class="vcard-trust-dot">·</span><span class="vcard-trust-item">Instant</span></div>
+          <div class="btn-row">
+            <button class="btn btn-primary js-preview-simple" data-img="img16">▶ Preview</button>
+            <button class="btn btn-gold js-buy" data-name="IZZY AND DOG" data-price="25">BUY NOW</button>
+          </div>
+          <div class="price-row"><span>Total</span><span class="price-amt">$25 USD</span></div>
+        </div>
+      </article>
+
+<article class="vcard">
+        <div class="vcard-media">
+          <video controls preload="auto" playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;">
+            <source src="https://files.catbox.moe/gm5647.mp4" type="video/mp4">
+          </video>
+          <img src="https://files.catbox.moe/bs89kc.jpg" alt="CARD 9" loading="lazy" class="poster-over" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:2;" id="img17">
+          <span class="badge-price"><em>$</em>30</span>
+        </div>
+        <div class="vcard-body">
+          <div class="vcard-title">ENGLISH TEEN</div>
+          <div class="vcard-trust"><span class="vcard-trust-item">Secure</span><span class="vcard-trust-dot">·</span><span class="vcard-trust-item">Instant</span></div>
+          <div class="btn-row">
+            <button class="btn btn-primary js-preview-simple" data-img="img17">▶ Preview</button>
+            <button class="btn btn-gold js-buy" data-name="ENGLISH TEEN" data-price="30">BUY NOW</button>
+          </div>
+          <div class="price-row"><span>Total</span><span class="price-amt">$30 USD</span></div>
+        </div>
+      </article>
+
+      <article class="vcard">
+        <div class="vcard-media">
+          <video controls preload="auto" playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;">
+            <source src="LINK_VIDEO_9.mp4#t=0.1" type="video/mp4">
+          </video>
+          <img src="https://files.catbox.moe/90zto4.webp" alt="CARD 9" loading="lazy" class="poster-over" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:2;" id="img18">
+          <span class="badge-price"><em>$</em>95</span>
+        </div>
+        <div class="vcard-body">
+          <div class="vcard-title">ALL CP</div>
+          <div class="vcard-trust"><span class="vcard-trust-item">Secure</span><span class="vcard-trust-dot">·</span><span class="vcard-trust-item">Instant</span></div>
+          <div class="btn-row">
+            <button class="btn btn-primary js-preview-simple" data-img="img18">▶ Preview</button>
+            <button class="btn btn-gold js-buy" data-name="ALL CP" data-price="95">BUY NOW</button>
+          </div>
+          <div class="price-row"><span>Total</span><span class="price-amt">$95 USD</span></div>
+        </div>
+      </article>
+
+      <article class="vcard">
+        <div class="vcard-media">
+          <video controls preload="auto" playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;">
+            <source src="https://files.catbox.moe/6g21o9.mp4" type="video/mp4">
+          </video>
+          <img src="https://files.catbox.moe/hknuvd.webp" alt="CARD 9" loading="lazy" class="poster-over" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:2;" id="img19">
+          <span class="badge-price"><em>$</em>70</span>
+        </div>
+        <div class="vcard-body">
+          <div class="vcard-title">SNAPGOD FULL EDITION</div>
+          <div class="vcard-trust"><span class="vcard-trust-item">Secure</span><span class="vcard-trust-dot">·</span><span class="vcard-trust-item">Instant</span></div>
+          <div class="btn-row">
+            <button class="btn btn-primary js-preview-simple" data-img="img19">▶ Preview</button>
+            <button class="btn btn-gold js-buy" data-name="SNAPGOD FULL EDITION" data-price="70">BUY NOW</button>
+          </div>
+          <div class="price-row"><span>Total</span><span class="price-amt">$70 USD</span></div>
+        </div>
+      </article>
+
+    </div>
+
+    <div class="trust-bar">
+      <span class="trust-item"><i class="fas fa-shield-haltered"></i> Encrypted</span>
+      <span class="trust-item"><i class="fas fa-bolt"></i> Instant</span>
+      <span class="trust-item"><i class="fas fa-sync-alt"></i> Updated</span>
+      <span class="trust-item"><i class="fas fa-headset"></i> 24/7</span>
+    </div>
+    <footer>© Video Vault · All rights reserved</footer>
+  </div>
+
+  <!-- BOLHA + MODAL -->
+  <div class="mini-bubble" id="miniBubble">
+    <span class="bubble-dot"></span>
+    <div class="bubble-content"><div class="bubble-buyer" id="bubbleBuyer"></div><div class="bubble-product" id="bubbleProduct"></div></div>
+    <div class="bubble-price" id="bubblePrice"></div>
+  </div>
+
+  <div class="modal-overlay" id="paymentModal">
+    <div class="modal">
+      <h3>💳 Choose Payment</h3>
+      <div class="modal-product" id="modalProduct">-</div>
+      <div class="modal-label">Select method</div>
+      <div class="pay-options">
+        <div class="pay-opt" data-method="BTC"><i class="fab fa-bitcoin"></i> Pay with BTC</div>
+        <div class="pay-opt" data-method="USDT (TRC20)"><i class="fas fa-dollar-sign"></i> Pay with USDT (TRC20)</div>
+        <div class="pay-opt" data-method="PayPal"><i class="fab fa-paypal"></i> Pay with PayPal</div>
+        <div class="pay-opt" data-method="Card"><i class="far fa-credit-card"></i> Pay with Card</div>
+      </div>
+      <div class="crypto-section" id="cryptoSection">
+        <div class="crypto-box"><div class="crypto-label" id="cryptoLabel">Address</div><div class="crypto-addr" id="cryptoAddr">SEU_ENDERECO_AQUI</div><button class="btn-copy" onclick="copyCrypto()">📋 Copy</button></div>
+        <button class="btn btn-gold" style="width:100%;margin-top:6px;" id="btnProof"><i class="fab fa-telegram-plane"></i> Send Proof on Telegram</button>
+      </div>
+      <button class="modal-close" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+
+  <script>
+    var BTC_ADDRESS = "bc1qkxqw3k35ng8dg7n4hujlndfzuewua8ra6rzj63";
+    var USDT_ADDRESS = "TFcw6V72WXS8ynWzvr1D4UnBjWGXzrfWB";
+    var TELEGRAM = "BIG_FILE001";
+    var currentName = "";
+    var currentPrice = "";
+
+    document.querySelectorAll('.js-preview-simple').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var img = document.getElementById(this.getAttribute('data-img'));
+        if (img) img.style.display = 'none';
+      });
+    });
+
+    document.querySelectorAll('.js-buy').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        currentName = this.getAttribute('data-name');
+        currentPrice = this.getAttribute('data-price');
+        document.getElementById('modalProduct').textContent = currentName + ' - $' + currentPrice;
+        document.getElementById('paymentModal').classList.add('active');
+        document.getElementById('cryptoSection').classList.remove('active');
+      });
+    });
+
+    document.querySelectorAll('.pay-opt').forEach(function(opt) {
+      opt.addEventListener('click', function() {
+        var method = this.getAttribute('data-method');
+        if (method === 'BTC' || method === 'USDT (TRC20)') {
+          document.getElementById('cryptoLabel').textContent = method + ' Address';
+          document.getElementById('cryptoAddr').textContent = method === 'BTC' ? BTC_ADDRESS : USDT_ADDRESS;
+          document.getElementById('cryptoSection').classList.add('active');
+          document.getElementById('btnProof').onclick = function() { sendProof(method); };
+        } else {
+          document.getElementById('cryptoSection').classList.remove('active');
+          window.open('https://t.me/' + TELEGRAM + '?text=' + encodeURIComponent('HI I WANT PAY WITH ' + method + '\n' + currentName + '\n$' + currentPrice), '_blank');
+          closeModal();
+        }
+      });
+    });
+
+    function sendProof(method) {
+      window.open('https://t.me/' + TELEGRAM + '?text=' + encodeURIComponent('HI I WANT PAY WITH ' + method + '\n' + currentName + '\n$' + currentPrice + '\nTX Hash: '), '_blank');
+    }
+
+    function copyCrypto() { var a=document.getElementById('cryptoAddr').textContent; if(navigator.clipboard){navigator.clipboard.writeText(a).then(function(){alert('Copied!')});} }
+    function closeModal() { document.getElementById('paymentModal').classList.remove('active'); document.getElementById('cryptoSection').classList.remove('active'); }
+    document.getElementById('paymentModal').addEventListener('click',function(e){if(e.target===this)closeModal();});
+
+    var buyers = ["Miguel S.","Rafael C.","Bruno O.","André P.","Tiago R.","Pedro L.","Lucas M.","Diego F.","Fábio A.","João V."];
+    function getData() {
+      var n=[],p=[];
+      document.querySelectorAll('.js-buy').forEach(function(b){n.push(b.getAttribute('data-name'));p.push('$'+b.getAttribute('data-price'));});
+      return {names:n,prices:p};
+    }
+    function updateBubble() {
+      var d=getData(); if(!d.names.length) return;
+      var b=buyers[Math.floor(Math.random()*buyers.length)], i=Math.floor(Math.random()*d.names.length);
+      document.getElementById('bubbleBuyer').textContent='👤 '+b;
+      document.getElementById('bubbleProduct').textContent='📦 '+d.names[i];
+      document.getElementById('bubblePrice').textContent=d.prices[i];
+    }
+    updateBubble(); setInterval(updateBubble,30000);
+  </script>
+</body>
+</html>
